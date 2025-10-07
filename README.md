@@ -71,16 +71,7 @@ Examples
 - `runs/[model]/[datetime]`
 - `D:/Exports/[env(USERNAME)]/[guid]`
 
-
-
 Notes
 - On Windows, prefer `%H-%M-%S` instead of `%H:%M:%S` in strftime patterns.
 - If neither ffmpeg nor lameenc is available, the node raises a clear error with install hints.
 
-
-Addendum: whitelist behavior and safety
-- Recommended location for `save_mp3_allowed_paths.json` is under the ComfyUI root (e.g., `ComfyUI/config/`) so it survives node updates.
-- Loader lookup order: env var → global ComfyUI locations → node folder.
-- A node‑local file is used only if it defines at least one allowed root; empty example files are ignored.
-- Lines starting with `#` are treated as comments in the JSON file.
-- An allowed root permits saving in that folder and all subfolders; whitelist a deeper path to restrict more tightly.
