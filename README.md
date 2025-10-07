@@ -1,7 +1,4 @@
-## Dehypnotic Save nodes
-
-# Dehypnotic Save Nodes
-
+# Dehypnotic Save nodes
 
 Simple, flexible MP3 saver with bitrate options and handy path/filename templates.
 
