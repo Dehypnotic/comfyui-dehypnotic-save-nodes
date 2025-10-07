@@ -72,8 +72,56 @@ Bitrate/quality mapping
 
 # Save Images
 
+Multi-format image saver with sequential naming, workflow embedding, and thumbnail support.
+
+Features
+- Image input: batches supported (returns original tensor passthrough)
+- Formats: PNG, JPG/JPEG, WEBP, GIF, BMP, TIFF via Pillow
+- Filename control: prefix + delimiter + padded counter (`number_start`/`number_padding`)
+- Overwrite handling: `increment`, `replace`, or `skip`
+- Optional metadata: embed workflow JSON (PNG/WEBP) and PNG thumbnail preview block
+- Quality controls: JPEG/WebP quality slider, PNG optimization toggle, lossless WebP, DPI setting
+- Outputs: `IMAGE` passthrough (for chaining) and `STRING` with newline-separated saved paths
+
+Paths & placeholders
+- `file_path` and `date_subfolder_pattern` share the same placeholder system as **Save MP3** (`[date]`, `[time(...)]`, `[guid]`, `[env(NAME)]`, etc.)
+- Leave `file_path` empty to use ComfyUI’s default `output/` directory
+- `date_subfolder_pattern` defaults to `%Y-%m-%d`; clear the field to disable dated folders
+
+Workflow tips
+- Enable `embed_workflow` to inject the current workflow JSON into PNG/WEBP outputs
+- `embed_thumbnail` stores a small PNG preview in PNG metadata (configurable `thumbnail_max_size`)
+- `overwrite_mode="increment"` scans the target folder and continues numbering automatically
+
 
 # Save Video & Frames
+
+Flexible video encoder that can also export selected frames, with automatic audio looping and preview thumbnails.
+
+Features
+- Save modes: `video`, `frames`, or `video & frames`
+- Containers: MP4, MKV, WEBM, MOV (auto-adjusted codec compatibility)
+- Codecs: H.264, H.265/HEVC, VP9, AV1, ProRes 422 HQ, DNxHR HQ
+- Audio: optional track input; single still frames can loop to match audio duration
+- Encoding controls: FPS, CRF, preset (ultrafast → veryslow), container-specific extras
+- Frame export: choose index list (`0,5,10`), sentinel values (`-1` all, `-2` last), or skip entirely
+- Preview: optional temp-image sequence surfaced in the ComfyUI UI result
+- Outputs: `IMAGE` passthrough and `STRING` pointing to the saved video (or frame folder)
+
+Paths & placeholders
+- `file_path`, `date_subfolder_pattern`, and `frames_dir` accept the same placeholders as **Save MP3**
+- Default date pattern `%Y-%m-%d`; clear to keep everything in the root folder
+- When `frames_dir` is relative it resolves under the chosen video directory
+
+Dependencies
+- Requires Python packages `imageio` and `imageio-ffmpeg` (`pip install imageio imageio-ffmpeg`)
+- Uses the static ffmpeg binary bundled by `imageio-ffmpeg`; no system-wide ffmpeg needed
+- Gracefully reports missing dependencies at node load/run time with install guidance
+
+Best practices
+- Keep `show_progress` on during setup to see ffmpeg command info
+- For WebM/V9 or AV1 targets, expect longer encode times at higher quality
+- Use `loop_still_to_audio=True` to turn a single frame + audio into a slideshow-style export
 
 
 
