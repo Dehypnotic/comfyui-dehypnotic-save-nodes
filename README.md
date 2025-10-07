@@ -101,6 +101,8 @@ Workflow tips
 
 # Save Video & Frames
 
+<img width="315" height="675" alt="image" src="https://github.com/user-attachments/assets/71145806-db2c-4cc5-82e8-d0f2468b61a0" />
+
 Flexible video encoder that can also export selected frames, with automatic audio looping and preview thumbnails.
 
 Features
