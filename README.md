@@ -100,7 +100,7 @@ Workflow tips
 - `embed_thumbnail` stores a small PNG preview in PNG metadata (configurable `thumbnail_max_size`)
 - `overwrite_mode="increment"` scans the target folder and continues numbering automatically
 
-- <img width="308" height="486" alt="image" src="https://github.com/user-attachments/assets/6e5f1571-4e28-47a3-bcd0-a15e944efeee" />
+<img width="308" height="486" alt="image" src="https://github.com/user-attachments/assets/6e5f1571-4e28-47a3-bcd0-a15e944efeee" />
 
 # Save Video & Frames
 
