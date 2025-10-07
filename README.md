@@ -131,7 +131,8 @@ Best practices
 - For WebM/V9 or AV1 targets, expect longer encode times at higher quality
 - Use `loop_still_to_audio=True` to turn a single frame + audio into a slideshow-style export
 
-  <img width="315" height="675" alt="image" src="https://github.com/user-attachments/assets/71145806-db2c-4cc5-82e8-d0f2468b61a0" />
+<img width="349" height="597" alt="image" src="https://github.com/user-attachments/assets/fbf8c3e4-dbda-4f6d-bd30-2fdcc9618397" />
+
 
 
 
