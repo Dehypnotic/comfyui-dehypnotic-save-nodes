@@ -1,17 +1,9 @@
-## Save MP3 node for ComfyUI
+## Dehypnotic Save nodes
 
-<img width="366" height="245" alt="image" src="https://github.com/user-attachments/assets/6fdae56c-6f65-4581-8af8-1b9e15d5b892" />
+# Dehypnotic Save Nodes
 
 
 Simple, flexible MP3 saver with bitrate options and handy path/filename templates.
-
-Features
-- Audio input: accepts common formats used by audio nodes
-- File path: ComfyUI output subfolder or absolute path (any drive)
-- Filename prefix
-- Bitrate mode: variable, constant, average
-- Quality: low, medium, high (mapped per mode)
-- Outputs: `AUDIO` and `STRING` (bitrate info summary), output node compatible (can terminate a graph)
 
 Installation
 1) Go to the `custom_nodes/` directory in ComfyUI.
@@ -20,6 +12,14 @@ Installation
    git clone https://github.com/Dehypnotic/comfyui-save-mp3.git
    ```
 3) Restart ComfyUI.
+
+Features
+- Audio input: accepts common formats used by audio nodes
+- File path: ComfyUI output subfolder or absolute path (any drive)
+- Filename prefix
+- Bitrate mode: variable, constant, average
+- Quality: low, medium, high (mapped per mode)
+- Outputs: `AUDIO` and `STRING` (bitrate info summary), output node compatible (can terminate a graph)
 
 Optional backends (no system install required)
 - Auto-download ffmpeg: `pip install imageio-ffmpeg` (first run caches a static ffmpeg)
