@@ -70,7 +70,7 @@ Bitrate/quality mapping
 - Constant (CBR): high → `320k`, medium → `192k`, low → `128k`
 - Average (ABR): high → `256k`, medium → `192k`, low → `160k` (uses `-abr 1`)
 
-# Save MP3
+# Save Images
 
 
 # Save Video & Frames
