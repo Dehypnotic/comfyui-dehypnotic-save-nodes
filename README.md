@@ -4,9 +4,9 @@ Save nodes for Audio (mp3), Video & Frames, and Images.
 
 Installation
 1) Go to the `custom_nodes/` directory in ComfyUI.
-2) Clone or copy the `comfyui-save-mp3` folder:
+2) Clone or copy the `comfyui-dehypnotic-save-nodes` folder:
    ```bash
-   git clone https://github.com/Dehypnotic/comfyui-save-mp3.git
+   git clone https://github.com/Dehypnotic/comfyui-dehypnotic-save-nodes.git
    ```
 3) Restart ComfyUI.
 
@@ -24,9 +24,15 @@ Alternatively (advanced): you can set the environment variable `SAVE_MP3_ALLOWED
   - `<ComfyUI>/user/config/save_mp3_allowed_paths.json`
 - The node refuses writes outside `output/` unless the path is under one of the whitelisted roots. Edit this file offline and restart ComfyUI.
 
----
-# Save MP3 (Dehypnotic)
+Whitelist behavior and safety
+- Recommended location for `save_mp3_allowed_paths.json` is under the ComfyUI root (e.g., `ComfyUI/config/`) so it survives node updates.
+- Loader lookup order: env var → global ComfyUI locations → node folder.
+- A node‑local file is used only if it defines at least one allowed root; empty example files are ignored.
+- Lines starting with `#` are treated as comments in the JSON file.
+- An allowed root permits saving in that folder and all subfolders; whitelist a deeper path to restrict more tightly.
 
+---
+# Save MP3
 
 Simple, flexible MP3 saver with bitrate options and handy path/filename templates.
 
