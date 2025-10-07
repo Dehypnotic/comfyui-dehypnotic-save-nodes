@@ -63,6 +63,7 @@ Optional backends (no system install required)
 - Auto-download ffmpeg: `pip install imageio-ffmpeg` (first run caches a static ffmpeg)
 - Drop-in ffmpeg: place `ffmpeg`/`ffmpeg.exe` in a `bin/` folder next to the node
 - Or install `lameenc`: `pip install lameenc`
+- If neither ffmpeg nor lameenc is available, the node raises an error with install hints.
 
 Backend preference: uses ffmpeg when available; otherwise falls back to `lameenc`.
 
@@ -72,8 +73,4 @@ Bitrate/quality mapping
 - Average (ABR): high → `256k`, medium → `192k`, low → `160k` (uses `-abr 1`)
 
 
-
-Notes
-- On Windows, prefer `%H-%M-%S` instead of `%H:%M:%S` in strftime patterns.
-- If neither ffmpeg nor lameenc is available, the node raises a clear error with install hints.
 
