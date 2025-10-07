@@ -14,6 +14,8 @@ import re
 import math
 import wave
 import json
+import time
+import uuid
 import tempfile
 import subprocess
 from pathlib import Path
@@ -368,8 +370,8 @@ class SaveVideo:
             "required": {
                 "save_mode": (("video", "frames", "video & frames"), {"default": "video", "tooltip": "Choose whether to save video, frames, or both."}),
                 "images": ("IMAGE", {"tooltip": "Frame input. Batch data supported."}),
-                "output_dir": ("STRING", {"default": "output/video", "tooltip": "Folder where the video is saved."}),
-                "date_subfolder_pattern": ("STRING", {"default": "", "tooltip": "Optional strftime pattern for subfolders, e.g. %Y-%m-%d."}),
+                "file_path": ("STRING", {"default": "output/video", "tooltip": "Folder where the video is saved."}),
+                "date_subfolder_pattern": ("STRING", {"default": "%Y-%m-%d", "tooltip": "Optional strftime pattern or placeholders for subfolders."}),
                 "filename_prefix": ("STRING", {"default": "VID", "tooltip": "Filename prefix, e.g. VID_0001.mp4."}),
                 "filename_delimiter": ("STRING", {"default": "_", "tooltip": "Delimiter between prefix and sequence number."}),
                 "number_padding": ("INT", {"default": 4, "min": 1, "max": 10, "tooltip": "Digits in the sequence number (0001, 0002, ...)."}),
@@ -505,7 +507,52 @@ class SaveVideo:
         )
         raise PermissionError(msg)
 
-    def _output_folder(self, base: str, pattern: str) -> Path:
+    def _build_template_context(self) -> dict:
+        return {
+            "unix": str(int(time.time())),
+            "guid": uuid.uuid4().hex,
+            "uuid": uuid.uuid4().hex,
+            "model": "unknown",
+        }
+
+    def _expand_path_templates(self, text: str, context: dict | None = None) -> str:
+        if not isinstance(text, str):
+            return text
+
+        ctx = context or {}
+
+        def repl_time(match):
+            fmt = match.group(1)
+            try:
+                return time.strftime(fmt)
+            except Exception:
+                return time.strftime("%Y%m%d_%H%M%S")
+
+        out = re.sub(r"[[]time\[(.*?)\]\]", repl_time, text)
+        out = out.replace("[date]", time.strftime("%Y-%m-%d"))
+        out = out.replace("[datetime]", time.strftime("%Y-%m-%d_%H-%M-%S"))
+        out = out.replace("[unix]", ctx.get("unix", str(int(time.time()))))
+        out = out.replace("[guid]", ctx.get("guid", uuid.uuid4().hex))
+        out = out.replace("[uuid]", ctx.get("uuid", uuid.uuid4().hex))
+        out = out.replace("[model]", ctx.get("model", "unknown"))
+
+        def repl_env(match):
+            name = match.group(1) or ""
+            return os.environ.get(name, "")
+
+        out = re.sub(r"[[]env\[(.*?)\]\]", repl_env, out)
+        return out
+
+    def _render_date_subfolder(self, pattern: str, context: dict | None = None) -> str:
+        expanded = self._expand_path_templates(pattern or "", context).strip()
+        if not expanded:
+            return ""
+        try:
+            return time.strftime(expanded)
+        except Exception:
+            return expanded
+
+    def _output_folder(self, base: str, subfolder: str) -> Path:
         base_output = self._base_output_dir()
         user_path = Path(str(base or "")).expanduser()
 
@@ -518,9 +565,8 @@ class SaveVideo:
             rel_path = Path(*rel_parts) if rel_parts else Path()
             folder = base_output / rel_path
 
-        if pattern.strip():
-            pattern_part = Path(datetime.now().strftime(pattern.strip()))
-            folder = folder / pattern_part
+        if subfolder:
+            folder = folder / Path(subfolder)
 
         folder = self._normalize_path(folder)
         self._validate_target_dir(folder)
@@ -531,7 +577,7 @@ class SaveVideo:
         self,
         save_mode,
         images,
-        output_dir,
+        file_path,
         date_subfolder_pattern,
         filename_prefix,
         filename_delimiter,
@@ -559,6 +605,10 @@ class SaveVideo:
             if _IMAGEIO_FFMPEG_ERROR:
                 msg += f" Import error: {_IMAGEIO_FFMPEG_ERROR}"
             raise RuntimeError(msg)
+
+        context = self._build_template_context()
+        expanded_file_path = self._expand_path_templates(file_path, context)
+        subfolder = self._render_date_subfolder(date_subfolder_pattern, context)
 
         frames = _normalize_frames(images)
         if not frames:
@@ -603,7 +653,7 @@ class SaveVideo:
 
         total_frames = len(frames)
 
-        base = self._output_folder(output_dir, date_subfolder_pattern)
+        base = self._output_folder(expanded_file_path, subfolder)
         seq = _next_seq_number(base, filename_prefix, filename_delimiter, number_padding)
         if number_start > 0:
             seq = max(seq, number_start)
@@ -749,6 +799,8 @@ class SaveVideo:
                 return []
 
         frames_dir_effective = frames_dir if isinstance(frames_dir, str) else ""
+        if frames_dir_effective:
+            frames_dir_effective = self._expand_path_templates(frames_dir_effective, context)
         if save_frames and not frames_dir_effective.strip():
             frames_dir_effective = "frames"
 

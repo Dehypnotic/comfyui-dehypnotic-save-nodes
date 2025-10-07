@@ -384,7 +384,7 @@ class SaveAudioMP3Enhanced:
             "required": {
                 "audio": ("AUDIO",),
                 "file_path": ("STRING", {"default": "audio", "multiline": False}),
-                "subfolder": ("STRING", {"default": "[date]", "multiline": False}),
+                "date_subfolder_pattern": ("STRING", {"default": "%Y-%m-%d", "multiline": False}),
                 "filename_prefix": ("STRING", {"default": "ComfyUI", "multiline": False}),
                 "bitrate_mode": (["variable", "constant", "average"], {"default": "variable"}),
                 "quality": (["low", "medium", "high"], {"default": "high"}),
@@ -554,6 +554,15 @@ class SaveAudioMP3Enhanced:
         out = re.sub(r"[[]env\[(.*?)\]\]", repl_env, out)
         return out
 
+    def _render_date_subfolder(self, pattern: str, context: dict | None = None) -> str:
+        expanded = self._expand_path_templates(pattern or "", context).strip()
+        if not expanded:
+            return ""
+        try:
+            return time.strftime(expanded)
+        except Exception:
+            return expanded
+
     def _try_rel_to_base(self, path: str) -> _t.Optional[str]:
         base = self._base_output_dir()
         try:
@@ -574,14 +583,14 @@ class SaveAudioMP3Enhanced:
             fname = f"{base}_{i}.mp3"
         return fname
 
-    def save(self, audio, file_path, subfolder, filename_prefix, bitrate_mode, quality,
+    def save(self, audio, file_path, date_subfolder_pattern, filename_prefix, bitrate_mode, quality,
              prompt=None, extra_pnginfo=None):
         pcm, sr = _normalize_audio_input(audio)
 
         # Expand templates like [time(%Y-%m-%d)] plus [unix], [guid], [model], [env(NAME)]
         context = self._build_template_context(prompt, extra_pnginfo)
         file_path = self._expand_path_templates(file_path, context)
-        subfolder = self._expand_path_templates(subfolder, context)
+        subfolder = self._render_date_subfolder(date_subfolder_pattern, context)
         filename_prefix = self._expand_path_templates(filename_prefix, context)
         
         # Combine file_path and subfolder

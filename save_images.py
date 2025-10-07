@@ -16,6 +16,8 @@
 import os
 import re
 import json
+import time
+import uuid
 import typing as _t
 from io import BytesIO
 from pathlib import Path
@@ -31,20 +33,6 @@ from PIL import Image
 # -----------------------------------------------------------------------------#
 
 VALID_EXTS = ["png", "jpg", "jpeg", "webp", "gif", "bmp", "tiff"]
-
-# Vanlige dato-mønstre for undermapper (siste tom streng = ingen dato-undermappe)
-COMMON_DATE_PATTERNS = [
-    "%Y-%m-%d",
-    "%Y/%m/%d",
-    "%Y-%m",
-    "%Y/%m",
-    "%Y%m%d",
-    "%Y%m",
-    "%Y-%m-%d_%H-%M-%S",
-    "%Y/%m/%d/%H-%M-%S",
-    "",
-]
-
 
 def to_pil(img: np.ndarray) -> Image.Image:
     """
@@ -211,9 +199,9 @@ class SaveImages:
         return {
             "required": {
                 "images": ("IMAGE",),
-                "output_dir": ("STRING", {"default": ""}),
-                # Hvis satt, lagres i output_dir / strftime(mønster)
-                "date_subfolder_pattern": (tuple(COMMON_DATE_PATTERNS), {"default": "%Y-%m-%d"}),
+                "file_path": ("STRING", {"default": ""}),
+                # Hvis satt, lagres i file_path / strftime-mønster
+                "date_subfolder_pattern": ("STRING", {"default": "%Y-%m-%d"}),
                 "filename_prefix": ("STRING", {"default": "QIE"}),
                 "filename_delimiter": ("STRING", {"default": "_"}),
                 "number_padding": ("INT", {"default": 4, "min": 1, "max": 10}),
@@ -370,9 +358,56 @@ class SaveImages:
             return env_v
         return None
 
+    def _build_template_context(self) -> dict:
+        return {
+            "unix": str(int(time.time())),
+            "guid": uuid.uuid4().hex,
+            "uuid": uuid.uuid4().hex,
+            "model": "unknown",
+        }
+
+    def _expand_path_templates(self, text: str, context: dict | None = None) -> str:
+        if not isinstance(text, str):
+            return text
+
+        ctx = context or {}
+
+        def repl_time(match):
+            fmt = match.group(1)
+            try:
+                return time.strftime(fmt)
+            except Exception:
+                return time.strftime("%Y%m%d_%H%M%S")
+
+        out = re.sub(r"[[]time\[(.*?)\]\]", repl_time, text)
+        out = out.replace("[date]", time.strftime("%Y-%m-%d"))
+        out = out.replace("[datetime]", time.strftime("%Y-%m-%d_%H-%M-%S"))
+        out = out.replace("[unix]", ctx.get("unix", str(int(time.time()))))
+        out = out.replace("[guid]", ctx.get("guid", uuid.uuid4().hex))
+        out = out.replace("[uuid]", ctx.get("uuid", uuid.uuid4().hex))
+        out = out.replace("[model]", ctx.get("model", "unknown"))
+
+        def repl_env(match):
+            name = match.group(1) or ""
+            return os.environ.get(name, "")
+
+        out = re.sub(r"[[]env\[(.*?)\]\]", repl_env, out)
+        return out
+
+    def _render_date_subfolder(self, pattern: str, context: dict | None = None) -> str:
+        expanded = self._expand_path_templates(pattern or "", context).strip()
+        if not expanded:
+            return ""
+        try:
+            return time.strftime(expanded)
+        except Exception:
+            return expanded
+
     def save(
         self,
         images,
+        file_path,
+        date_subfolder_pattern,
         filename_prefix,
         filename_delimiter,
         number_padding,
@@ -386,16 +421,16 @@ class SaveImages:
         embed_workflow,
         embed_thumbnail,
         thumbnail_max_size,
-        output_dir="",
-        date_subfolder_pattern="",
     ):
-        # Bygg målkatalog (+ valgfri datoundermappe)
-        resolved_main_dir = self._resolve_out_dir(output_dir)
+        context = self._build_template_context()
+        expanded_file_path = self._expand_path_templates(file_path, context)
+        resolved_main_dir = self._resolve_out_dir(expanded_file_path)
         self._validate_target_dir(resolved_main_dir)
 
         base = Path(resolved_main_dir)
-        if date_subfolder_pattern.strip():
-            base = base / datetime.now().strftime(date_subfolder_pattern.strip())
+        subfolder = self._render_date_subfolder(date_subfolder_pattern, context)
+        if subfolder:
+            base = base / subfolder
         base.mkdir(parents=True, exist_ok=True)
 
         # Finn start-sekvens
