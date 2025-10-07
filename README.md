@@ -10,7 +10,23 @@ Installation
    ```
 3) Restart ComfyUI.
 
+## Security and external save paths (ComfyUI Manager compliant)
+- By default, saving is allowed under ComfyUI’s `output/` directory.
+- To allow external locations (e.g., other drives), create a local JSON file next to this node named `dehypnotic_save_allowed_paths.json` with:
+  ```json
+  { "allowed_roots": ["D:/AudioExports", "E:/TeamShare/Audio"] }
+  ```
+Alternatively (advanced): you can set the environment variable `SAVE_MP3_ALLOWED_PATHS` to point to the JSON file. This is optional — for most users it’s enough to place the JSON file next to the node or in one of the global ComfyUI locations listed below.
+- You can also place the file globally under your ComfyUI root:
+  - `<ComfyUI>/save_mp3_allowed_paths.json`
+  - `<ComfyUI>/config/save_mp3_allowed_paths.json`
+  - `<ComfyUI>/user/save_mp3_allowed_paths.json`
+  - `<ComfyUI>/user/config/save_mp3_allowed_paths.json`
+- The node refuses writes outside `output/` unless the path is under one of the whitelisted roots. Edit this file offline and restart ComfyUI.
+
 ---
+# Save MP3 (Dehypnotic)
+
 
 Simple, flexible MP3 saver with bitrate options and handy path/filename templates.
 
@@ -49,19 +65,7 @@ Examples
 - `runs/[model]/[datetime]`
 - `D:/Exports/[env(USERNAME)]/[guid]`
 
-Security and external save paths (ComfyUI Manager compliant)
-- By default, saving is allowed under ComfyUI’s `output/` directory.
-- To allow external locations (e.g., other drives), create a local JSON file next to this node named `dehypnotic_save_allowed_paths.json` with:
-  ```json
-  { "allowed_roots": ["D:/AudioExports", "E:/TeamShare/Audio"] }
-  ```
-Alternatively (advanced): you can set the environment variable `SAVE_MP3_ALLOWED_PATHS` to point to the JSON file. This is optional — for most users it’s enough to place the JSON file next to the node or in one of the global ComfyUI locations listed below.
-- You can also place the file globally under your ComfyUI root:
-  - `<ComfyUI>/save_mp3_allowed_paths.json`
-  - `<ComfyUI>/config/save_mp3_allowed_paths.json`
-  - `<ComfyUI>/user/save_mp3_allowed_paths.json`
-  - `<ComfyUI>/user/config/save_mp3_allowed_paths.json`
-- The node refuses writes outside `output/` unless the path is under one of the whitelisted roots. Edit this file offline and restart ComfyUI.
+
 
 Notes
 - On Windows, prefer `%H-%M-%S` instead of `%H:%M:%S` in strftime patterns.
