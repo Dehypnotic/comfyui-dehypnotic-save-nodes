@@ -1,6 +1,6 @@
 # Dehypnotic Save nodes
 
-Simple, flexible MP3 saver with bitrate options and handy path/filename templates.
+Save nodes for Audio (mp3), Video & Frames, and Images.
 
 Installation
 1) Go to the `custom_nodes/` directory in ComfyUI.
@@ -9,6 +9,10 @@ Installation
    git clone https://github.com/Dehypnotic/comfyui-save-mp3.git
    ```
 3) Restart ComfyUI.
+
+---
+
+Simple, flexible MP3 saver with bitrate options and handy path/filename templates.
 
 Features
 - Audio input: accepts common formats used by audio nodes
