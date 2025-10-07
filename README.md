@@ -75,6 +75,8 @@ Bitrate/quality mapping
 - Constant (CBR): high → `320k`, medium → `192k`, low → `128k`
 - Average (ABR): high → `256k`, medium → `192k`, low → `160k` (uses `-abr 1`)
 
+<img width="283" height="439" alt="image" src="https://github.com/user-attachments/assets/3793981d-0401-48da-add3-b58de1cc63c6" />
+
 # Save Images
 
 Multi-format image saver with sequential naming, workflow embedding, and thumbnail support.
@@ -98,10 +100,9 @@ Workflow tips
 - `embed_thumbnail` stores a small PNG preview in PNG metadata (configurable `thumbnail_max_size`)
 - `overwrite_mode="increment"` scans the target folder and continues numbering automatically
 
+- <img width="308" height="486" alt="image" src="https://github.com/user-attachments/assets/6e5f1571-4e28-47a3-bcd0-a15e944efeee" />
 
 # Save Video & Frames
-
-<img width="315" height="675" alt="image" src="https://github.com/user-attachments/assets/71145806-db2c-4cc5-82e8-d0f2468b61a0" />
 
 Flexible video encoder that can also export selected frames, with automatic audio looping and preview thumbnails.
 
@@ -129,6 +130,8 @@ Best practices
 - Keep `show_progress` on during setup to see ffmpeg command info
 - For WebM/V9 or AV1 targets, expect longer encode times at higher quality
 - Use `loop_still_to_audio=True` to turn a single frame + audio into a slideshow-style export
+
+  <img width="315" height="675" alt="image" src="https://github.com/user-attachments/assets/71145806-db2c-4cc5-82e8-d0f2468b61a0" />
 
 
 
