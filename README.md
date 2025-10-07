@@ -57,6 +57,11 @@ Features
 - Quality: low, medium, high (mapped per mode)
 - Outputs: `AUDIO` and `STRING` (bitrate info summary), output node compatible (can terminate a graph)
 
+Paths & placeholders
+- `file_path` and `date_subfolder_pattern` with placeholder system (`[date]`, `[time(...)]`, `[guid]`, `[env(NAME)]`, etc.)
+- Leave `file_path` empty to use ComfyUI’s default `output/` directory
+- `date_subfolder_pattern` defaults to `%Y-%m-%d`; clear the field to disable dated folders
+
 Optional backends (no system install required)
 - Auto-download ffmpeg: `pip install imageio-ffmpeg` (first run caches a static ffmpeg)
 - Drop-in ffmpeg: place `ffmpeg`/`ffmpeg.exe` in a `bin/` folder next to the node
@@ -84,7 +89,7 @@ Features
 - Outputs: `IMAGE` passthrough (for chaining) and `STRING` with newline-separated saved paths
 
 Paths & placeholders
-- `file_path` and `date_subfolder_pattern` share the same placeholder system as **Save MP3** (`[date]`, `[time(...)]`, `[guid]`, `[env(NAME)]`, etc.)
+- `file_path` and `date_subfolder_pattern` share the same placeholder system the other nodes (`[date]`, `[time(...)]`, `[guid]`, `[env(NAME)]`, etc.)
 - Leave `file_path` empty to use ComfyUI’s default `output/` directory
 - `date_subfolder_pattern` defaults to `%Y-%m-%d`; clear the field to disable dated folders
 
@@ -109,7 +114,7 @@ Features
 - Outputs: `IMAGE` passthrough and `STRING` pointing to the saved video (or frame folder)
 
 Paths & placeholders
-- `file_path`, `date_subfolder_pattern`, and `frames_dir` accept the same placeholders as **Save MP3**
+- `file_path`, `date_subfolder_pattern`, and `frames_dir` accept the same placeholders as the other nodes (`[date]`, `[time(...)]`, `[guid]`, `[env(NAME)]`, etc.)
 - Default date pattern `%Y-%m-%d`; clear to keep everything in the root folder
 - When `frames_dir` is relative it resolves under the chosen video directory
 
