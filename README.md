@@ -25,7 +25,7 @@ Alternatively (advanced): you can set the environment variable `SAVE_MP3_ALLOWED
 - The node refuses writes outside `output/` unless the path is under one of the whitelisted roots. Edit this file offline and restart ComfyUI.
 
 Whitelist behavior and safety
-- Recommended location for `save_mp3_allowed_paths.json` is under the ComfyUI root (e.g., `ComfyUI/config/`) so it survives node updates.
+- Recommended location under ComfyUI root (e.g., `ComfyUI/config/`) so it survives node updates.
 - Loader lookup order: env var → global ComfyUI locations → node folder.
 - A node‑local file is used only if it defines at least one allowed root; empty example files are ignored.
 - Lines starting with `#` are treated as comments in the JSON file.
