@@ -75,7 +75,7 @@ Bitrate/quality mapping
 - Constant (CBR): high → `320k`, medium → `192k`, low → `128k`
 - Average (ABR): high → `256k`, medium → `192k`, low → `160k` (uses `-abr 1`)
 
-<img width="283" height="439" alt="image" src="https://github.com/user-attachments/assets/3793981d-0401-48da-add3-b58de1cc63c6" />
+<img width="347" height="239" alt="image" src="https://github.com/user-attachments/assets/7cfa5081-c81e-4d3e-8634-699449ef8d9f" />
 
 # Save Images
 
