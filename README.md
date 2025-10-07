@@ -31,6 +31,21 @@ Whitelist behavior and safety
 - Lines starting with `#` are treated as comments in the JSON file.
 - An allowed root permits saving in that folder and all subfolders; whitelist a deeper path to restrict more tightly.
 
+Path and filename templates
+Placeholders supported in `file_path` and `filename_prefix`:
+- `[time(%Y-%m-%d)]` → formatted time (strftime)
+- `[date]` → `YYYY-MM-DD`
+- `[datetime]` → `YYYY-MM-DD_HH-MM-SS`
+- `[unix]` → epoch seconds
+- `[guid]` / `[uuid]` → random UUID4 hex
+- `[model]` → tries `extra_pnginfo` keys: `model`, `checkpoint`, `ckpt_name`, `model_name`; else `unknown`
+- `[env(NAME)]` → environment variable `NAME`
+
+Examples
+- `audio/[time(%Y-%m-%d)]`
+- `runs/[model]/[datetime]`
+- `D:/Exports/[env(USERNAME)]/[guid]`
+
 ---
 # Save MP3
 
@@ -56,20 +71,7 @@ Bitrate/quality mapping
 - Constant (CBR): high → `320k`, medium → `192k`, low → `128k`
 - Average (ABR): high → `256k`, medium → `192k`, low → `160k` (uses `-abr 1`)
 
-Path and filename templates
-Placeholders supported in `file_path` and `filename_prefix`:
-- `[time(%Y-%m-%d)]` → formatted time (strftime)
-- `[date]` → `YYYY-MM-DD`
-- `[datetime]` → `YYYY-MM-DD_HH-MM-SS`
-- `[unix]` → epoch seconds
-- `[guid]` / `[uuid]` → random UUID4 hex
-- `[model]` → tries `extra_pnginfo` keys: `model`, `checkpoint`, `ckpt_name`, `model_name`; else `unknown`
-- `[env(NAME)]` → environment variable `NAME`
 
-Examples
-- `audio/[time(%Y-%m-%d)]`
-- `runs/[model]/[datetime]`
-- `D:/Exports/[env(USERNAME)]/[guid]`
 
 Notes
 - On Windows, prefer `%H-%M-%S` instead of `%H:%M:%S` in strftime patterns.
