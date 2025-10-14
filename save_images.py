@@ -334,14 +334,14 @@ class SaveImages:
 
         # 3. If no match, deny access
         msg = (
-            "External save path is not allowed.\\n"
-            f'(Attempted to write to: "{abs_target}")\\n\\n'
-            "This node only writes inside ComfyUI's `output` or `temp` directories, "
-            "unless the path is whitelisted offline.\\n\\n"
+            "External save path is not allowed.\n"
+            "This node only writes inside ComfyUI's output directory, "
+            "unless the path is whitelisted offline.\n\n"
             "To allow external locations, create/edit a JSON file named "
-            "\'dehypnotic_save_allowed_paths.json\' in your ComfyUI root (or user/config) folder "
-            "with content like:\\n\\n"
-            '{\\n  "allowed_roots": ["D:/ImageExports", "E:/TeamShare/Assets"]\\n}\\n'
+            "'dehypnotic_save_allowed_paths.json' in your ComfyUI root (or user/config) folder "
+            "with content like:\n\n"
+            '{\n  "allowed_roots": ["D:/AudioExports", "E:/TeamShare/Audio"]\n}\n\n'
+            "You can also set the DEHYPNOTIC_SAVE_ALLOWED_PATHS environment variable to point to this file."
         )
         raise PermissionError(msg)
 
