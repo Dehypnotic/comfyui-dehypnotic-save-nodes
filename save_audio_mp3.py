@@ -597,15 +597,24 @@ class SaveAudioMP3Enhanced:
         if subfolder:
             file_path = os.path.join(file_path, subfolder)
 
-        target_dir = self._resolve_out_dir(file_path)
-        # Enforce ComfyUI Manager guideline: restrict external paths by offline whitelist
-        self._validate_target_dir(target_dir)
-        _ensure_dir(target_dir)
+        # The user-provided path combined with the prefix's directory part
+        # is the intended final directory.
+        prefix_dir = os.path.dirname(filename_prefix)
+        base_dir = self._resolve_out_dir(file_path)
+        final_dir = os.path.join(base_dir, prefix_dir)
 
-        # Alltid lagre til angitt målmappe
-        out_dir = target_dir
-        filename = self._next_filename(out_dir, filename_prefix)
-        out_path = os.path.join(out_dir, filename)
+        # Resolve the final directory to its absolute, canonical path.
+        # This processes any '..' parts from both file_path and filename_prefix.
+        final_dir_abs = os.path.abspath(final_dir)
+
+        # Enforce ComfyUI Manager guideline: validate the *actual* final directory.
+        self._validate_target_dir(final_dir_abs)
+        _ensure_dir(final_dir_abs)
+
+        # Use only the filename part of the prefix for the actual filename.
+        base_prefix = os.path.basename(filename_prefix)
+        filename = self._next_filename(final_dir_abs, base_prefix)
+        out_path = os.path.join(final_dir_abs, filename)
 
         # Encode til valgt sted
         _encode_mp3(pcm, sr, out_path, bitrate_mode, quality)
@@ -630,7 +639,7 @@ class SaveAudioMP3Enhanced:
         info_lines.append("- low: 160 kbps")
         info_lines.append("")
         # mark the active selection
-        info_lines.append(f"Selected: mode={{bitrate_mode}}, quality={{quality}}")
+        info_lines.append(f"Selected: mode={bitrate_mode}, quality={quality}")
         bitrate_info = "\n".join(info_lines)
 
         # Returner AUDIO og tekst for visningsnode

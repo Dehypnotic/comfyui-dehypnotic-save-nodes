@@ -552,27 +552,6 @@ class SaveVideo:
         except Exception:
             return expanded
 
-    def _output_folder(self, base: str, subfolder: str) -> Path:
-        base_output = self._base_output_dir()
-        user_path = Path(str(base or "")).expanduser()
-
-        if user_path.is_absolute():
-            folder = user_path
-        else:
-            rel_parts = [p for p in user_path.parts if p and p != "."]
-            if rel_parts and rel_parts[0].lower() in ("output", "outputs"):
-                rel_parts = rel_parts[1:]
-            rel_path = Path(*rel_parts) if rel_parts else Path()
-            folder = base_output / rel_path
-
-        if subfolder:
-            folder = folder / Path(subfolder)
-
-        folder = self._normalize_path(folder)
-        self._validate_target_dir(folder)
-        folder.mkdir(parents=True, exist_ok=True)
-        return folder
-
     def save(
         self,
         save_mode,
@@ -595,7 +574,7 @@ class SaveVideo:
         preview_step=1,
         preview_max_frames=24,
         frames_dir="",
-        frames_select="0",
+        frames_select="-2",
     ):
         if imageio_ffmpeg is None:
             msg = (
@@ -606,10 +585,42 @@ class SaveVideo:
                 msg += f" Import error: {_IMAGEIO_FFMPEG_ERROR}"
             raise RuntimeError(msg)
 
+        # --- Path Setup & Validation ---
         context = self._build_template_context()
         expanded_file_path = self._expand_path_templates(file_path, context)
+        expanded_prefix = self._expand_path_templates(filename_prefix, context)
         subfolder = self._render_date_subfolder(date_subfolder_pattern, context)
 
+        # Determine the base directory from user input `file_path`
+        user_path = Path(str(expanded_file_path or "")).expanduser()
+        if user_path.is_absolute():
+            base_dir = user_path
+        else:
+            base_output = self._base_output_dir()
+            rel_parts = [p for p in user_path.parts if p and p != "."]
+            if rel_parts and rel_parts[0].lower() in ("output", "outputs"):
+                rel_parts = rel_parts[1:]
+            rel_path = Path(*rel_parts) if rel_parts else Path()
+            base_dir = base_output / rel_path
+        
+        # Add subfolder
+        if subfolder:
+            base_dir = base_dir / Path(subfolder)
+
+        # Add directory part from prefix
+        prefix_dir_part = os.path.dirname(expanded_prefix)
+        if prefix_dir_part:
+            base_dir = base_dir / Path(prefix_dir_part)
+
+        # Now we have the final intended directory. Normalize and validate it.
+        final_video_dir = self._normalize_path(base_dir)
+        self._validate_target_dir(final_video_dir)
+        final_video_dir.mkdir(parents=True, exist_ok=True)
+
+        # Use only the filename part of the prefix
+        base_prefix = os.path.basename(expanded_prefix)
+
+        # --- Get Frames & Codec Info ---
         frames = _normalize_frames(images)
         if not frames:
             raise ValueError("No frames provided.")
@@ -622,284 +633,175 @@ class SaveVideo:
 
         container_key = str(container).lower()
         codec_key = str(video_codec).lower()
-
         container_info = CONTAINER_OPTIONS.get(container_key)
         codec_info = VIDEO_CODEC_OPTIONS.get(codec_key)
 
         if save_video:
-            if container_info is None:
-                raise ValueError(f"Unsupported container '{container}'.")
-            if codec_info is None:
-                raise ValueError(f"Unsupported video codec '{video_codec}'.")
+            if container_info is None: raise ValueError(f"Unsupported container '{container}'.")
+            if codec_info is None: raise ValueError(f"Unsupported video codec '{video_codec}'.")
             if codec_key not in container_info["allowed_codecs"]:
                 allowed = ", ".join(sorted(container_info["allowed_codecs"]))
-                raise ValueError(
-                    f"Codec '{codec_key}' is not supported in container '{container_key}'. Allowed: {allowed}."
-                )
+                raise ValueError(f"Codec '{codec_key}' is not supported in '{container_key}'. Allowed: {allowed}.")
         else:
-            if container_info is None:
-                container_info = {"extension": "bin", "audio_codec": None, "extra": []}
-            if codec_info is None:
-                codec_info = VIDEO_CODEC_OPTIONS["h264"]
+            container_info = {"extension": "bin", "audio_codec": None, "extra": []}
+            codec_info = VIDEO_CODEC_OPTIONS["h264"]
 
-        acodec = None
-        audio_path = None
-        tmp_wav = None
-        if save_video and audio is not None:
-            acodec = container_info.get("audio_codec")
-            if acodec:
-                tmp_wav = _audio_to_wav_path(audio)
-                audio_path = tmp_wav
-
-        total_frames = len(frames)
-
-        base = self._output_folder(expanded_file_path, subfolder)
-        seq = _next_seq_number(base, filename_prefix, filename_delimiter, number_padding)
+        # --- Sequence Numbering ---
+        seq = _next_seq_number(final_video_dir, base_prefix, filename_delimiter, number_padding)
         if number_start > 0:
             seq = max(seq, number_start)
-        stem = f"{filename_prefix}{filename_delimiter}{seq:0{number_padding}d}"
+        stem = f"{base_prefix}{filename_delimiter}{seq:0{number_padding}d}"
 
-        out_path = None
-        video_dir = base
+        # --- Main Save Logic ---
         video_path_str = ""
+        frames_saved_path = None
 
         if save_video:
             extension = container_info.get("extension", "mp4")
-            out_path = self._normalize_path(base / f"{stem}.{extension}")
-            video_dir = out_path.parent
+            out_path = self._normalize_path(final_video_dir / f"{stem}.{extension}")
 
-            ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()  # type: ignore[arg-type]
+            tmp_wav = None
+            audio_path = None
+            acodec = container_info.get("audio_codec")
+            if audio is not None and acodec:
+                tmp_wav = _audio_to_wav_path(audio)
+                audio_path = tmp_wav
+
+            total_frames = len(frames)
+            ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
             if len(frames) == 1 and audio_path and loop_still_to_audio:
                 dur = _probe_audio_duration(ffmpeg_exe, audio_path)
                 if dur and dur > 0:
                     total_frames = int(math.ceil(dur * fps))
-                    if show_progress:
-                        print(f"[SaveVideo] Looping single frame for {dur:.2f}s -> {total_frames} frames @ {fps} fps")
-                elif show_progress:
-                    print("[SaveVideo] Could not read audio duration; using single frame only.")
+                    if show_progress: print(f"[SaveVideo] Looping single frame for {dur:.2f}s -> {total_frames} frames @ {fps} fps")
+                elif show_progress: print("[SaveVideo] Could not read audio duration; using single frame only.")
 
             h, w, _ = frames[0].shape
-            cmd = _build_cmd(
-                ffmpeg_exe=ffmpeg_exe, w=w, h=h, fps=fps,
-                out_path=out_path, codec_info=codec_info, container_info=container_info,
-                acodec=acodec, audio_path=audio_path, crf=crf, preset=preset
-            )
+            cmd = _build_cmd(ffmpeg_exe, w, h, fps, out_path, codec_info, container_info, acodec, audio_path, crf, preset)
 
             if show_progress:
-                try:
-                    print(f"[SaveVideo] Output base: {base.resolve()}")
-                except Exception:
-                    print(f"[SaveVideo] Output base: {base}")
-                print(f"[SaveVideo] Container: {container_key} | Codec: {codec_key}")
-                print(f"[SaveVideo] -> {out_path}")
-                print(f"[SaveVideo] FFmpeg: {' '.join(cmd)}")
+                print(f"[SaveVideo] Output base: {final_video_dir.resolve()}")
+                print(f"[SaveVideo] Container: {container_key} | Codec: {codec_key} -> {out_path}")
 
             proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE, text=False)
-
             try:
                 if len(frames) == 1 and total_frames > 1:
                     buf = frames[0].tobytes()
                     step = max(1, total_frames // 50)
                     for i in range(total_frames):
                         proc.stdin.write(buf)
-                        if show_progress and (i + 1) % step == 0:
-                            pct = 100.0 * (i + 1) / total_frames
-                            print(f"[SaveVideo] {i+1}/{total_frames} ({pct:5.1f}%)")
+                        if show_progress and (i + 1) % step == 0: print(f"[SaveVideo] {i+1}/{total_frames} ({(100 * (i + 1) / total_frames):5.1f}%)")
                 else:
                     total = len(frames)
                     step = max(1, total // 50)
                     for i, f in enumerate(frames, 1):
                         proc.stdin.write(f.tobytes())
-                        if show_progress and (i % step == 0):
-                            pct = 100.0 * i / total
-                            print(f"[SaveVideo] {i}/{total} ({pct:5.1f}%)")
+                        if show_progress and (i % step == 0): print(f"[SaveVideo] {i}/{total} ({(100 * i / total):5.1f}%)")
             finally:
-                try:
-                    if proc.stdin:
-                        proc.stdin.flush()
-                except Exception:
-                    pass
-                if proc.stdin:
-                    proc.stdin.close()
-                stderr_text = ""
-                stderr_bytes = b""
-                if proc.stderr:
-                    try:
-                        stderr_bytes = proc.stderr.read()
-                    except Exception:
-                        stderr_bytes = b""
-                try:
-                    stderr_text = stderr_bytes.decode("utf-8", errors="ignore") if isinstance(stderr_bytes, (bytes, bytearray)) else str(stderr_bytes)
-                except Exception:
-                    stderr_text = ""
+                if proc.stdin: proc.stdin.close()
+                stderr_bytes = proc.stderr.read() if proc.stderr else b""
+                proc.stderr.close() if proc.stderr else None
                 ret = proc.wait()
 
-            out_exists = out_path.exists()
-            out_size = out_path.stat().st_size if out_exists else 0
-            success = (ret == 0) and out_exists and out_size > 0
-
-            if tmp_wav and success:
+            if tmp_wav: 
                 try:
                     os.unlink(tmp_wav)
                 except Exception:
                     pass
 
-            if not success:
-                msg = (
-                    f"FFmpeg failed (code {ret}). Output exists={out_exists} size={out_size}.\n"
-                    f"Command: {' '.join(cmd)}\n"
-                    f"Stderr:\n{stderr_text.strip()}"
-                )
-                raise RuntimeError(msg)
 
-            try:
-                video_path_str = str(out_path.resolve())
-            except Exception:
-                video_path_str = str(out_path)
+            out_exists = out_path.exists() and out_path.stat().st_size > 0
+            if ret != 0 or not out_exists:
+                stderr_text = stderr_bytes.decode("utf-8", errors="ignore")
+                raise RuntimeError(f"FFmpeg failed (code {ret}).\nCommand: {' '.join(cmd)}\nStderr:\n{stderr_text.strip()}")
 
-            if show_progress:
-                print(f"[SaveVideo] Done: {video_path_str} ({out_size} bytes)")
-                try:
-                    entries = sorted([p.name for p in Path(video_dir).iterdir()])
-                    preview_list = ', '.join(entries[:20])
-                    more = '' if len(entries) <= 20 else f" (+{len(entries)-20} more)"
-                    print(f"[SaveVideo] Dir list ({video_dir}): {preview_list}{more}")
-                except Exception:
-                    pass
-        else:
-            if show_progress:
-                try:
-                    print(f"[SaveVideo] Output base: {base.resolve()}")
-                except Exception:
-                    print(f"[SaveVideo] Output base: {base}")
-                print("[SaveVideo] Save mode: frames only")
+            video_path_str = str(out_path.resolve())
+            if show_progress: print(f"[SaveVideo] Done: {video_path_str} ({out_path.stat().st_size} bytes)")
 
+        # --- Frame Saving Logic ---
         def _parse_frame_selection(spec: str, total: int) -> List[int]:
             s = (spec or "").strip()
-            if not s:
-                return []
-            if s == "-1":
-                return list(range(total))
-            if s == "-2":
-                return [max(0, total - 1)] if total > 0 else []
+            if not s: return []
+            if s == "-1": return list(range(total))
+            if s == "-2": return [max(0, total - 1)] if total > 0 else []
             try:
                 parts = [x.strip() for x in s.split(',') if x.strip()]
                 idxs: List[int] = []
                 for p in parts:
                     v = int(p)
                     if v < 0:
-                        if v == -1:
-                            return list(range(total))
-                        if v == -2 and total > 0:
-                            idxs.append(total - 1)
+                        if v == -1: return list(range(total))
+                        if v == -2 and total > 0: idxs.append(total - 1)
                     elif v < total:
                         idxs.append(v)
                 return sorted(set(idxs))
             except Exception:
                 return []
 
-        frames_dir_effective = frames_dir if isinstance(frames_dir, str) else ""
-        if frames_dir_effective:
-            frames_dir_effective = self._expand_path_templates(frames_dir_effective, context)
-        if save_frames and not frames_dir_effective.strip():
+        frames_dir_effective = self._expand_path_templates(frames_dir or "", context).strip()
+        if save_frames and not frames_dir_effective:
             frames_dir_effective = "frames"
 
-        frames_saved_path = None
-        if save_frames and isinstance(frames_dir_effective, str) and frames_dir_effective.strip():
+        if save_frames and frames_dir_effective:
             idxs = _parse_frame_selection(frames_select, len(frames))
             if idxs:
-                frames_path = Path(frames_dir_effective.strip()).expanduser()
+                frames_path = Path(frames_dir_effective).expanduser()
                 if frames_path.is_absolute():
                     target_folder = self._normalize_path(frames_path)
                 else:
-                    target_folder = self._normalize_path(video_dir / frames_path)
-
+                    target_folder = self._normalize_path(final_video_dir / frames_path)
+                
                 self._validate_target_dir(target_folder)
                 target_folder.mkdir(parents=True, exist_ok=True)
-
-                if show_progress:
-                    print(f"[SaveVideo] Saving frames -> {target_folder} | select='{frames_select}' -> {len(idxs)} frames")
-
-                try:
-                    import imageio.v2 as imageio  # type: ignore
-                except Exception:
-                    imageio = None  # type: ignore
-
-                for idx in idxs:
-                    a = frames[idx]
-                    if a.dtype != np.uint8:
-                        a = np.clip(a, 0, 1)
-                        a = (a * 255.0).round().astype(np.uint8)
-                    if a.shape[2] == 4:
-                        a = a[:, :, :3]
-                    fname = f"{stem}_frame_{idx:04d}.png"
-                    fpath = target_folder / fname
-                    try:
-                        if imageio is not None:
-                            imageio.imwrite(str(fpath), a)
-                    except Exception:
-                        pass
                 frames_saved_path = target_folder
-            elif show_progress and save_frames:
-                print(f"[SaveVideo] Frame export skipped (selection '{frames_select}').")
 
+                if show_progress: print(f"[SaveVideo] Saving frames -> {target_folder} | select='{frames_select}' -> {len(idxs)} frames")
+
+                try: 
+                    import imageio.v2 as imageio
+                except Exception: 
+                    imageio = None
+
+                if imageio:
+                    for idx in idxs:
+                        a = frames[idx]
+                        fname = f"{stem}_frame_{idx:04d}.png"
+                        try: 
+                            imageio.imwrite(str(target_folder / fname), a)
+                        except Exception: 
+                            pass
+
+        # --- UI Output --- 
+        abs_path = video_path_str or (str(frames_saved_path.resolve()) if frames_saved_path else str(final_video_dir.resolve()))
+        ui = {"text": abs_path}
+        
         ui_seq_images = []
-        imageio = None
         if show_preview:
-            try:
-                import imageio.v2 as imageio  # type: ignore
-            except Exception:
-                imageio = None  # type: ignore
+            try: 
+                import imageio.v2 as imageio
+            except Exception: 
+                imageio = None
 
-            if imageio is not None and len(frames) > 0 and preview_max_frames > 0:
+            if imageio and frames and preview_max_frames > 0:
                 try:
-                    from folder_paths import get_temp_directory  # type: ignore
+                    from folder_paths import get_temp_directory
                     seq_root = Path(get_temp_directory())
                 except Exception:
-                    seq_root = video_dir
+                    seq_root = final_video_dir
 
                 step = max(1, int(preview_step))
-                idxs = list(range(0, len(frames), step))
-                if len(frames) == 1:
-                    idxs = [0]
-                if preview_max_frames > 0:
-                    idxs = idxs[:preview_max_frames]
+                idxs = list(range(0, len(frames), step))[:preview_max_frames]
+                if len(frames) == 1: idxs = [0]
 
-                for i, idx in enumerate(idxs, 1):
-                    a = frames[idx if idx < len(frames) else -1]
-                    if a.dtype != np.uint8:
-                        a = np.clip(a, 0, 1)
-                        a = (a * 255.0).round().astype(np.uint8)
-                    if a.shape[2] == 4:
-                        a = a[:, :, :3]
+                for i, idx in enumerate(idxs):
+                    a = frames[idx]
                     fname = f"{stem}_seq_{i:04d}.png"
-                    fpath = seq_root / fname
                     try:
-                        imageio.imwrite(str(fpath), a)
+                        imageio.imwrite(str(seq_root / fname), a)
+                        ui_seq_images.append({"filename": fname, "subfolder": "", "type": "temp"})
                     except Exception:
                         continue
-                    ui_seq_images.append({
-                        "filename": fname,
-                        "subfolder": "",
-                        "type": "temp",
-                    })
-
-        abs_path = ""
-        if video_path_str:
-            abs_path = video_path_str
-        elif frames_saved_path is not None:
-            try:
-                abs_path = str(frames_saved_path.resolve())
-            except Exception:
-                abs_path = str(frames_saved_path)
-
-        if not abs_path:
-            try:
-                abs_path = str(base.resolve())
-            except Exception:
-                abs_path = str(base)
-
-        ui = {"text": abs_path}
+        
         if ui_seq_images:
             ui["images"] = ui_seq_images
 

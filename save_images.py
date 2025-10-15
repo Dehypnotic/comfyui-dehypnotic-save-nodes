@@ -422,24 +422,44 @@ class SaveImages:
         embed_thumbnail,
         thumbnail_max_size,
     ):
+        # Expand templates in paths and prefixes
         context = self._build_template_context()
         expanded_file_path = self._expand_path_templates(file_path, context)
-        resolved_main_dir = self._resolve_out_dir(expanded_file_path)
-        self._validate_target_dir(resolved_main_dir)
+        expanded_prefix = self._expand_path_templates(filename_prefix, context)
+        
+        # Resolve the base directory from the user-provided file_path
+        base_dir = self._resolve_out_dir(expanded_file_path)
 
-        base = Path(resolved_main_dir)
-        subfolder = self._render_date_subfolder(date_subfolder_pattern, context)
-        if subfolder:
-            base = base / subfolder
-        base.mkdir(parents=True, exist_ok=True)
+        # Add the date-based subfolder if specified
+        date_subfolder = self._render_date_subfolder(date_subfolder_pattern, context)
+        if date_subfolder:
+            base_dir = os.path.join(base_dir, date_subfolder)
 
-        # Finn start-sekvens
+        # Combine the resolved base directory with any directory part from the prefix
+        prefix_dir_part = os.path.dirname(expanded_prefix)
+        final_dir = os.path.join(base_dir, prefix_dir_part)
+
+        # Resolve the final directory to its absolute, canonical path.
+        # This processes any '..' parts from all path components.
+        final_dir_abs = os.path.abspath(final_dir)
+
+        # Enforce ComfyUI Manager guideline: validate the *actual* final directory.
+        self._validate_target_dir(final_dir_abs)
+        
+        # Use pathlib.Path for directory creation and file path construction
+        final_dir_path = Path(final_dir_abs)
+        final_dir_path.mkdir(parents=True, exist_ok=True)
+
+        # Use only the filename part of the prefix for the actual filename.
+        base_prefix = os.path.basename(expanded_prefix)
+
+        # Find start-sequence
         if overwrite_mode == "increment":
-            seq = max(number_start, next_seq_number(base, filename_prefix, filename_delimiter, number_padding))
+            seq = max(number_start, next_seq_number(final_dir_path, base_prefix, filename_delimiter, number_padding))
         else:
             seq = max(1, number_start)
 
-        # Hent workflow JSON hvis vi skal embedde
+        # Get workflow JSON if we are embedding
         workflow_json = self._get_workflow_json() if embed_workflow else None
 
         saved_paths: List[str] = []
@@ -448,11 +468,11 @@ class SaveImages:
         for image_tensor in images:
             pil_img = to_pil(image_tensor.cpu().numpy())
 
-            stem = f"{filename_prefix}{filename_delimiter}{seq:0{number_padding}d}"
+            stem = f"{base_prefix}{filename_delimiter}{seq:0{number_padding}d}"
             filename = f"{stem}.{extension.lower()}"
-            path = base / filename
+            path = final_dir_path / filename
 
-            # Håndter overwrite-modus
+            # Handle overwrite mode
             if path.exists():
                 if overwrite_mode == "replace":
                     pass
@@ -463,9 +483,9 @@ class SaveImages:
                 elif overwrite_mode == "increment":
                     while path.exists():
                         seq += 1
-                        stem = f"{filename_prefix}{filename_delimiter}{seq:0{number_padding}d}"
+                        stem = f"{base_prefix}{filename_delimiter}{seq:0{number_padding}d}"
                         filename = f"{stem}.{extension.lower()}"
-                        path = base / filename
+                        path = final_dir_path / filename
 
             save_single_image(
                 pil_img=pil_img,
@@ -484,8 +504,8 @@ class SaveImages:
             saved_paths.append(str(path))
             seq += 1
 
-        # Returner originalt bilde (for chaining) + paths
-        return (images, "\\n".join(saved_paths),)
+        # Return original image (for chaining) + paths
+        return (images, "\n".join(saved_paths),)
 
 
 # Registrering i ComfyUI
