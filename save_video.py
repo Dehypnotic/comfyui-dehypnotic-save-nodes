@@ -485,8 +485,8 @@ class SaveVideo:
         except Exception:
             return False
 
-    def _validate_target_dir(self, target_dir: Path) -> None:
-        target_abs = self._normalize_path(target_dir)
+    def _validate_path_is_allowed(self, target_path: Path) -> None:
+        target_abs = self._normalize_path(target_path)
         base_output = self._base_output_dir()
         if self._is_under_dir(target_abs, base_output):
             return
@@ -500,7 +500,7 @@ class SaveVideo:
             "This node only writes inside ComfyUI's output directory, "
             "unless the path is whitelisted offline.\n\n"
             "To allow external locations, create/edit a JSON file named "
-            "'dehypnotic_save_allowed_paths.json' in your ComfyUI root (or user/config) folder "
+            "\'dehypnotic_save_allowed_paths.json\' in your ComfyUI root (or user/config) folder "
             "with content like:\n\n"
             '{\n  "allowed_roots": ["D:/VideoExports", "E:/TeamShare/Video"]\n}\n\n'
             "You can also set the DEHYPNOTIC_SAVE_ALLOWED_PATHS environment variable to point to this file."
@@ -614,7 +614,6 @@ class SaveVideo:
 
         # Now we have the final intended directory. Normalize and validate it.
         final_video_dir = self._normalize_path(base_dir)
-        self._validate_target_dir(final_video_dir)
         final_video_dir.mkdir(parents=True, exist_ok=True)
 
         # Use only the filename part of the prefix
@@ -659,6 +658,9 @@ class SaveVideo:
         if save_video:
             extension = container_info.get("extension", "mp4")
             out_path = self._normalize_path(final_video_dir / f"{stem}.{extension}")
+
+            # Final validation before creating the subprocess
+            self._validate_path_is_allowed(out_path)
 
             tmp_wav = None
             audio_path = None
@@ -751,7 +753,6 @@ class SaveVideo:
                 else:
                     target_folder = self._normalize_path(final_video_dir / frames_path)
                 
-                self._validate_target_dir(target_folder)
                 target_folder.mkdir(parents=True, exist_ok=True)
                 frames_saved_path = target_folder
 
@@ -766,8 +767,10 @@ class SaveVideo:
                     for idx in idxs:
                         a = frames[idx]
                         fname = f"{stem}_frame_{idx:04d}.png"
+                        frame_path = target_folder / fname
+                        self._validate_path_is_allowed(frame_path)
                         try: 
-                            imageio.imwrite(str(target_folder / fname), a)
+                            imageio.imwrite(str(frame_path), a)
                         except Exception: 
                             pass
 

@@ -108,80 +108,84 @@ def _make_png_thumbnail_text(pil_img: Image.Image, max_size: int = 256) -> str:
     return f"data:image/png;base64,{b64}"
 
 
-def save_single_image(
-    pil_img: Image.Image,
-    path: Path,
-    ext: str,
-    quality: int,
-    optimize: bool,
-    lossless_webp: bool,
-    dpi: int,
-    embed_workflow: bool,
-    workflow_data: Optional[str],
-    embed_thumbnail: bool,
-    thumbnail_max_size: int,
-) -> None:
-    """
-    Lagrer ett PIL-bilde til ønsket format med relevante parametre og ev. metadata.
-    """
-    ext_l = ext.lower()
-    save_kwargs = {}
+    def _save_single_image(
+        self,
+        pil_img: Image.Image,
+        path: Path,
+        ext: str,
+        quality: int,
+        optimize: bool,
+        lossless_webp: bool,
+        dpi: int,
+        embed_workflow: bool,
+        workflow_data: Optional[str],
+        embed_thumbnail: bool,
+        thumbnail_max_size: int,
+    ) -> None:
+        """
+        Lagrer ett PIL-bilde til ønsket format med relevante parametre og ev. metadata.
+        """
+        # Final validation of the full, absolute path just before saving.
+        self._validate_path_is_allowed(str(path))
 
-    if dpi and dpi > 0:
-        # De fleste formater bruker (x_dpi, y_dpi)
-        save_kwargs["dpi"] = (dpi, dpi)
+        ext_l = ext.lower()
+        save_kwargs = {}
 
-    if ext_l in ("jpg", "jpeg"):
-        save_kwargs["quality"] = int(quality)
-        save_kwargs["optimize"] = bool(optimize)
-        pil_img = pil_img.convert("RGB")  # JPEG støtter ikke alfa
+        if dpi and dpi > 0:
+            # De fleste formater bruker (x_dpi, y_dpi)
+            save_kwargs["dpi"] = (dpi, dpi)
 
-    elif ext_l == "png":
-        save_kwargs["optimize"] = bool(optimize)
-
-    elif ext_l == "webp":
-        if lossless_webp:
-            save_kwargs["lossless"] = True
-        else:
+        if ext_l in ("jpg", "jpeg"):
             save_kwargs["quality"] = int(quality)
+            save_kwargs["optimize"] = bool(optimize)
+            pil_img = pil_img.convert("RGB")  # JPEG støtter ikke alfa
 
-    # --- Metadata-innstøping ------------------------------------------------- 
-    if ext_l == "png":
-        # Bygg PngInfo med valgfri workflow + thumbnail
-        try:
-            from PIL import PngImagePlugin
+        elif ext_l == "png":
+            save_kwargs["optimize"] = bool(optimize)
 
-            meta = PngImagePlugin.PngInfo()
-            if embed_workflow and workflow_data:
-                meta.add_text("workflow", workflow_data)
-            if embed_thumbnail:
-                try:
-                    thumb_text = _make_png_thumbnail_text(pil_img, max_size=thumbnail_max_size)
-                    # Bruk iTXt via add_text (Pillow velger iTXt når unicode/len>?)
-                    meta.add_text("thumbnail", thumb_text)
-                except Exception:
-                    pass  # thumbnail er bare et ekstra
-            pil_img.save(path, format="PNG", pnginfo=meta, **save_kwargs)
-            return
-        except Exception:
-            # Faller tilbake til vanlig lagring dersom noe feiler
-            pass
+        elif ext_l == "webp":
+            if lossless_webp:
+                save_kwargs["lossless"] = True
+            else:
+                save_kwargs["quality"] = int(quality)
 
-    if ext_l == "webp" and embed_workflow and workflow_data:
-        # Pillow (>=9.1 ca.) støtter xmp= for WEBP. Prøv det, og fall tilbake ved TypeError.
-        try:
-            xmp_bytes = _make_webp_xmp(workflow_data)
-            pil_img.save(path, format="WEBP", xmp=xmp_bytes, **save_kwargs)
-            return
-        except TypeError:
-            # Eldre Pillow uten xmp-argument – fallet ned til standard lagring.
-            pass
+        # --- Metadata-innstøping ------------------------------------------------- 
+        if ext_l == "png":
+            # Bygg PngInfo med valgfri workflow + thumbnail
+            try:
+                from PIL import PngImagePlugin
 
-    # Standard lagring uten ekstra metadata
-    save_format = ext_l.upper()
-    if save_format == "JPG":
-        save_format = "JPEG"
-    pil_img.save(path, format=save_format, **save_kwargs)
+                meta = PngImagePlugin.PngInfo()
+                if embed_workflow and workflow_data:
+                    meta.add_text("workflow", workflow_data)
+                if embed_thumbnail:
+                    try:
+                        thumb_text = _make_png_thumbnail_text(pil_img, max_size=thumbnail_max_size)
+                        # Bruk iTXt via add_text (Pillow velger iTXt når unicode/len>?)
+                        meta.add_text("thumbnail", thumb_text)
+                    except Exception:
+                        pass  # thumbnail er bare et ekstra
+                pil_img.save(path, format="PNG", pnginfo=meta, **save_kwargs)
+                return
+            except Exception:
+                # Faller tilbake til vanlig lagring dersom noe feiler
+                pass
+
+        if ext_l == "webp" and embed_workflow and workflow_data:
+            # Pillow (>=9.1 ca.) støtter xmp= for WEBP. Prøv det, og fall tilbake ved TypeError.
+            try:
+                xmp_bytes = _make_webp_xmp(workflow_data)
+                pil_img.save(path, format="WEBP", xmp=xmp_bytes, **save_kwargs)
+                return
+            except TypeError:
+                # Eldre Pillow uten xmp-argument – fallet ned til standard lagring.
+                pass
+
+        # Standard lagring uten ekstra metadata
+        save_format = ext_l.upper()
+        if save_format == "JPG":
+            save_format = "JPEG"
+        pil_img.save(path, format=save_format, **save_kwargs)
 
 
 # -----------------------------------------------------------------------------#
@@ -313,23 +317,23 @@ class SaveImages:
         except Exception:
             return False
 
-    def _validate_target_dir(self, target_dir: str) -> None:
-        """Raise PermissionError if target_dir is not in a permitted location."""
-        abs_target = os.path.abspath(target_dir)
+    def _validate_path_is_allowed(self, path_to_validate: str) -> None:
+        """Raise PermissionError if path_to_validate is not in a permitted location."""
+        abs_path = os.path.abspath(path_to_validate)
 
         # 1. Always allow ComfyUI's output and temp directories
         comfy_output = self._get_comfy_dir("output")
-        if self._is_under_dir(abs_target, comfy_output):
+        if self._is_under_dir(abs_path, comfy_output):
             return
 
         comfy_temp = self._get_comfy_dir("temp")
-        if self._is_under_dir(abs_target, comfy_temp):
+        if self._is_under_dir(abs_path, comfy_temp):
             return
 
         # 2. Allow whitelisted paths
         allowed_roots = self._load_allowed_roots()
         for root in allowed_roots:
-            if self._is_under_dir(abs_target, root):
+            if self._is_under_dir(abs_path, root):
                 return
 
         # 3. If no match, deny access
@@ -442,9 +446,6 @@ class SaveImages:
         # Resolve the final directory to its absolute, canonical path.
         # This processes any '..' parts from all path components.
         final_dir_abs = os.path.abspath(final_dir)
-
-        # Enforce ComfyUI Manager guideline: validate the *actual* final directory.
-        self._validate_target_dir(final_dir_abs)
         
         # Use pathlib.Path for directory creation and file path construction
         final_dir_path = Path(final_dir_abs)
@@ -487,7 +488,7 @@ class SaveImages:
                         filename = f"{stem}.{extension.lower()}"
                         path = final_dir_path / filename
 
-            save_single_image(
+            self._save_single_image(
                 pil_img=pil_img,
                 path=path,
                 ext=extension,
@@ -506,6 +507,7 @@ class SaveImages:
 
         # Return original image (for chaining) + paths
         return (images, "\n".join(saved_paths),)
+
 
 
 # Registrering i ComfyUI

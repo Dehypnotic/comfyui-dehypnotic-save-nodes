@@ -473,15 +473,15 @@ class SaveAudioMP3Enhanced:
         except Exception:
             return False
 
-    def _validate_target_dir(self, target_dir: str) -> None:
-        """Raise PermissionError if target_dir is not in ComfyUI output or whitelisted."""
+    def _validate_path_is_allowed(self, path_to_validate: str) -> None:
+        """Raise PermissionError if path_to_validate is not in ComfyUI output or whitelisted."""
         base_output = self._base_output_dir()
-        if self._is_under_dir(target_dir, base_output):
+        if self._is_under_dir(path_to_validate, base_output):
             return
 
         allowed_roots = self._load_allowed_roots()
         for root in allowed_roots:
-            if self._is_under_dir(target_dir, root):
+            if self._is_under_dir(path_to_validate, root):
                 return
 
         msg = (
@@ -606,15 +606,15 @@ class SaveAudioMP3Enhanced:
         # Resolve the final directory to its absolute, canonical path.
         # This processes any '..' parts from both file_path and filename_prefix.
         final_dir_abs = os.path.abspath(final_dir)
-
-        # Enforce ComfyUI Manager guideline: validate the *actual* final directory.
-        self._validate_target_dir(final_dir_abs)
         _ensure_dir(final_dir_abs)
 
         # Use only the filename part of the prefix for the actual filename.
         base_prefix = os.path.basename(filename_prefix)
         filename = self._next_filename(final_dir_abs, base_prefix)
         out_path = os.path.join(final_dir_abs, filename)
+
+        # Enforce ComfyUI Manager guideline: validate the *actual* final path.
+        self._validate_path_is_allowed(out_path)
 
         # Encode til valgt sted
         _encode_mp3(pcm, sr, out_path, bitrate_mode, quality)
