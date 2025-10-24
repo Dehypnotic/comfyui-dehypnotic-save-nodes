@@ -108,6 +108,49 @@ def _make_png_thumbnail_text(pil_img: Image.Image, max_size: int = 256) -> str:
     return f"data:image/png;base64,{b64}"
 
 
+
+
+
+# -----------------------------------------------------------------------------#
+# Node
+# -----------------------------------------------------------------------------#
+
+class SaveImages:
+    """
+    Lagrer bilder til disk i flere formater med sekvensiell navngiving.
+    Kan embedde workflow (PNG/WEBP) og PNG preview-thumbnail.
+    """
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "images": ("IMAGE",),
+                "file_path": ("STRING", {"default": ""}),
+                # Hvis satt, lagres i file_path / strftime-mønster
+                "date_subfolder_pattern": ("STRING", {"default": "%Y-%m-%d"}),
+                "filename_prefix": ("STRING", {"default": "QIE"}),
+                "filename_delimiter": ("STRING", {"default": "_"}),
+                "number_padding": ("INT", {"default": 4, "min": 1, "max": 10}),
+                "number_start": ("INT", {"default": 1, "min": 0, "max": 1_000_000}),
+                "extension": (tuple(VALID_EXTS), {"default": "png"}),
+                "quality": ("INT", {"default": 100, "min": 1, "max": 100}),
+                "optimize_image": ("BOOLEAN", {"default": True}),
+                "lossless_webp": ("BOOLEAN", {"default": True}),
+                "dpi": ("INT", {"default": 300, "min": 1, "max": 1200}),
+                "overwrite_mode": (("increment", "replace", "skip"), {"default": "increment"}),
+                "embed_workflow": ("BOOLEAN", {"default": False}),
+                "embed_thumbnail": ("BOOLEAN", {"default": True}),
+                "thumbnail_max_size": ("INT", {"default": 256, "min": 32, "max": 1024}),
+            },
+        }
+
+    RETURN_TYPES = ("IMAGE", "STRING",)
+    RETURN_NAMES = ("images", "saved_path",)
+    FUNCTION = "save"
+    OUTPUT_NODE = True
+    CATEGORY = "image/io"
+
     def _save_single_image(
         self,
         pil_img: Image.Image,
@@ -187,48 +230,23 @@ def _make_png_thumbnail_text(pil_img: Image.Image, max_size: int = 256) -> str:
             save_format = "JPEG"
         pil_img.save(path, format=save_format, **save_kwargs)
 
-
-# -----------------------------------------------------------------------------#
-# Node
-# -----------------------------------------------------------------------------#
-
-class SaveImages:
-    """
-    Lagrer bilder til disk i flere formater med sekvensiell navngiving.
-    Kan embedde workflow (PNG/WEBP) og PNG preview-thumbnail.
-    """
-
-    @classmethod
-    def INPUT_TYPES(cls):
-        return {
-            "required": {
-                "images": ("IMAGE",),
-                "file_path": ("STRING", {"default": ""}),
-                # Hvis satt, lagres i file_path / strftime-mønster
-                "date_subfolder_pattern": ("STRING", {"default": "%Y-%m-%d"}),
-                "filename_prefix": ("STRING", {"default": "QIE"}),
-                "filename_delimiter": ("STRING", {"default": "_"}),
-                "number_padding": ("INT", {"default": 4, "min": 1, "max": 10}),
-                "number_start": ("INT", {"default": 1, "min": 0, "max": 1_000_000}),
-                "extension": (tuple(VALID_EXTS), {"default": "png"}),
-                "quality": ("INT", {"default": 100, "min": 1, "max": 100}),
-                "optimize_image": ("BOOLEAN", {"default": True}),
-                "lossless_webp": ("BOOLEAN", {"default": True}),
-                "dpi": ("INT", {"default": 300, "min": 1, "max": 1200}),
-                "overwrite_mode": (("increment", "replace", "skip"), {"default": "increment"}),
-                "embed_workflow": ("BOOLEAN", {"default": False}),
-                "embed_thumbnail": ("BOOLEAN", {"default": True}),
-                "thumbnail_max_size": ("INT", {"default": 256, "min": 32, "max": 1024}),
-            },
-        }
-
-    RETURN_TYPES = ("IMAGE", "STRING",)
-    RETURN_NAMES = ("images", "saved_path",)
-    FUNCTION = "save"
-    OUTPUT_NODE = True
-    CATEGORY = "image/io"
-
     # --- Whitelist Path Logic (ported from audio node) ---
+
+    def _save_single_image(
+        self,
+        pil_img: Image.Image,
+        path: Path,
+        ext: str,
+        quality: int,
+        optimize: bool,
+        lossless_webp: bool,
+        dpi: int,
+        embed_workflow: bool,
+        workflow_data: Optional[str],
+        embed_thumbnail: bool,
+        thumbnail_max_size: int,
+    ):
+        pass
 
     def _get_comfy_dir(self, name: str) -> _t.Optional[str]:
         try:
