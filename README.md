@@ -85,7 +85,6 @@ Features
 - Image input: batches supported (returns original tensor passthrough)
 - Formats: PNG, JPG/JPEG, WEBP, GIF, BMP, TIFF via Pillow
 - Filename control: prefix + delimiter + padded counter (`number_start`/`number_padding`)
-- Overwrite handling: `increment`, `replace`, or `skip`
 - Optional metadata: embed workflow JSON (PNG/WEBP) and PNG thumbnail preview block
 - Quality controls: JPEG/WebP quality slider, PNG optimization toggle, lossless WebP, DPI setting
 - Outputs: `IMAGE` passthrough (for chaining) and `STRING` with newline-separated saved paths
@@ -95,12 +94,10 @@ Paths & placeholders
 - Leave `file_path` empty to use ComfyUI’s default `output/` directory
 - `date_subfolder_pattern` defaults to `%Y-%m-%d`; clear the field to disable dated folders
 
-Workflow tips
+Workflow tip
 - Enable `embed_workflow` to inject the current workflow JSON into PNG/WEBP outputs
-- `embed_thumbnail` stores a small PNG preview in PNG metadata (configurable `thumbnail_max_size`)
-- `overwrite_mode="increment"` scans the target folder and continues numbering automatically
 
-<img width="308" height="486" alt="image" src="https://github.com/user-attachments/assets/6e5f1571-4e28-47a3-bcd0-a15e944efeee" />
+<img width="259" height="340" alt="image" src="https://github.com/user-attachments/assets/608d94b8-72b8-48a2-b140-dfd2b64dcadc" />
 
 # Save Video & Frames
 
